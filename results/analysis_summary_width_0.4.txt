@@ -1,0 +1,14 @@
+Angle: 0.0°
+Fired: 2406000
+Hits: 100125
+Spacing: 4.33
+Contrast: 1.00
+FWHM: 1.50
+Symmetry: 1.00
+CentroidY: 0.01
+CentroidZ: -0.00
+Pattern Tilt: 0.03°
+YZ Corr: 0.00
+Slit1: 50066
+Slit2: 50059
+Mirrored: false
