@@ -22,6 +22,8 @@ Interactive 3D double-slit simulation in Rust (Macroquad) exploring a phase-pert
 - `S` — Sweep slit width from 0.2–2.0; writes `analysis_results_width_*.csv` and `sweep_results.csv`.
 - `P` — Sweep emission phase distributions (uniform/sinusoidal/Gaussian π); writes `analysis_results_phase_*.csv` and `phase_sweep_results.csv`.
 - `T` — Sweep slit tilt angles (0°, 15°, -15°, 30°); writes `angle_sweep_results.csv`.
+- `E` — Enable/Disable the slit (toggles between double-slit and free propagation).
+- `W` — Wavefunction Mode (toggles visualization of complex phase as a helix).
 - `M` — Mirror transverse motion.
 - `D` — Diagnostic symmetry check at the barrier (no screen hits).
 

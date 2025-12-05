@@ -56,10 +56,12 @@ async fn main() {
     
     // Mirror State
     let mut mirrored = false;
+    let mut wavefunction_mode = false;
     
     // Slit Tracking
     let mut slit1_hits = 0u32;
     let mut slit2_hits = 0u32;
+    let mut slit_enabled = true;
     
     // Sweep State
     let mut sweep_mode = false;
@@ -121,10 +123,12 @@ async fn main() {
         let barrier_height = 20.0;
         let barrier_width = 30.0;
         
-        let s2 = slit_separation / 2.0;
-        let w2 = slit_width / 2.0;
-        
-        // Barrier Parts (Gray)
+    
+    let s2 = slit_separation / 2.0;
+    let w2 = slit_width / 2.0;
+    
+    // Barrier Parts (Gray)
+    if slit_enabled {
         let y_start_1: f32 = -barrier_width / 2.0;
         let y_end_1: f32 = -s2 - w2;
         let center_y_1 = (y_start_1 + y_end_1) / 2.0;
@@ -142,6 +146,7 @@ async fn main() {
         let center_y_3 = (y_start_3 + y_end_3) / 2.0;
         let size_y_3 = (y_end_3 - y_start_3).abs();
         draw_cube(vec3(barrier_x, center_y_3, 0.0), vec3(0.5, size_y_3, barrier_height), None, GRAY);
+    }
 
 
         // Spawn Logic
@@ -489,8 +494,18 @@ async fn main() {
                 // Transverse position: symmetric in phase_offset; time modulation enters as an additive phase
                 let mirror_sign = if mirrored { -1.0 } else { 1.0 };
                 let y_phase = TRANSVERSE_FREQUENCY * t_q + p.phase_offset;
-                let y = mirror_sign * TRANSVERSE_AMPLITUDE * y_phase.sin();
-                let z = p.pos.z; // Preserve initial z to allow slit tilt to skew hits
+                
+                let y = if wavefunction_mode {
+                     mirror_sign * TRANSVERSE_AMPLITUDE * y_phase.cos()
+                } else {
+                     mirror_sign * TRANSVERSE_AMPLITUDE * y_phase.sin()
+                };
+                
+                let z = if wavefunction_mode {
+                    p.pos.z + TRANSVERSE_AMPLITUDE * y_phase.sin() // Add imaginary part to Z
+                } else {
+                    p.pos.z // Preserve initial z
+                };
                 
                 p.pos = vec3(x, y, z);
                 
@@ -511,34 +526,36 @@ async fn main() {
                         particles.remove(i);
                         continue;
                     }
-                    // Gaussian Slit Transmission with angle tilt
-                    // When slits are tilted, the center shifts based on z position
-                    // For simplicity, we shift centers based on the angle
-                    // tan(angle) = shift_y / reference_distance
-                    
-                    let angle_rad = slit_angle * std::f32::consts::PI / 180.0;
-                    let angle_shift = z * angle_rad.tan(); // Shift based on z and angle
-                    
-                    let sigma = 0.4; // Tunable for "softness"
-                    let center_1 = -s2 + angle_shift;
-                    let center_2 = s2 + angle_shift;
-                    
-                    let p1 = (-((y - center_1).powi(2)) / (2.0 * sigma * sigma)).exp();
-                    let p2 = (-((y - center_2).powi(2)) / (2.0 * sigma * sigma)).exp();
-                    
-                    let transmission_prob = p1 + p2;
-                    
-                    if rand::gen_range(0.0, 1.0) > transmission_prob {
-                        // Blocked/Absorbed
-                        particles.remove(i);
-                        continue;
-                    }
-                    
-                    // Track which slit: compare distances
-                    if (y - center_1).abs() < (y - center_2).abs() {
-                        p.slit_passed = 1; // Slit 1 (negative Y)
-                    } else {
-                        p.slit_passed = 2; // Slit 2 (positive Y)
+                    if slit_enabled {
+                        // Gaussian Slit Transmission with angle tilt
+                        // When slits are tilted, the center shifts based on z position
+                        // For simplicity, we shift centers based on the angle
+                        // tan(angle) = shift_y / reference_distance
+                        
+                        let angle_rad = slit_angle * std::f32::consts::PI / 180.0;
+                        let angle_shift = z * angle_rad.tan(); // Shift based on z and angle
+                        
+                        let sigma = 0.4; // Tunable for "softness"
+                        let center_1 = -s2 + angle_shift;
+                        let center_2 = s2 + angle_shift;
+                        
+                        let p1 = (-((y - center_1).powi(2)) / (2.0 * sigma * sigma)).exp();
+                        let p2 = (-((y - center_2).powi(2)) / (2.0 * sigma * sigma)).exp();
+                        
+                        let transmission_prob = p1 + p2;
+                        
+                        if rand::gen_range(0.0, 1.0) > transmission_prob {
+                            // Blocked/Absorbed
+                            particles.remove(i);
+                            continue;
+                        }
+                        
+                        // Track which slit: compare distances
+                        if (y - center_1).abs() < (y - center_2).abs() {
+                            p.slit_passed = 1; // Slit 1 (negative Y)
+                        } else {
+                            p.slit_passed = 2; // Slit 2 (positive Y)
+                        }
                     }
                 }
                 
@@ -657,6 +674,16 @@ async fn main() {
         if is_key_pressed(KeyCode::M) {
             mirrored = !mirrored;
         }
+
+        // Toggle Slit
+        if is_key_pressed(KeyCode::E) {
+            slit_enabled = !slit_enabled;
+        }
+
+        // Toggle Wavefunction Mode
+        if is_key_pressed(KeyCode::W) {
+            wavefunction_mode = !wavefunction_mode;
+        }
         
         // Start Sweep
         if is_key_pressed(KeyCode::S) {
@@ -754,10 +781,10 @@ async fn main() {
         } else if sweep_mode {
             format!("SWEEP: Width={:.1} | Fired: {} | Hits: {} | Step {}/10", current_slit_width, total_fired, analysis_hits, sweep_results.len() + 1)
         } else {
-            format!("Fired: {} | Hits: {} | Phase: {} | Mirror: {} | Angle: {:.1}°", total_fired, if analyzing { analysis_hits } else { intensity_map.len() }, phase_name, if mirrored { "ON" } else { "OFF" }, slit_angle)
+            format!("Fired: {} | Hits: {} | Phase: {} | Mirror: {} | Slit: {} | Wave: {} | Angle: {:.1}°", total_fired, if analyzing { analysis_hits } else { intensity_map.len() }, phase_name, if mirrored { "ON" } else { "OFF" }, if slit_enabled { "ON" } else { "OFF" }, if wavefunction_mode { "ON" } else { "OFF" }, slit_angle)
         };
         draw_text(&status_text, 10.0, 50.0, 20.0, YELLOW);
-        draw_text("SPACE reset | A Analyze | M Mirror | S Sweep | P Phase | T Tilt Sweep | D Diagnostic", 10.0, 70.0, 20.0, LIGHTGRAY);
+        draw_text("SPACE reset | A Analyze | M Mirror | E Slit | W Wave | S Sweep | P Phase | T Tilt | D Diag", 10.0, 70.0, 20.0, LIGHTGRAY);
         draw_text(&format!("Slit1: {} | Slit2: {}", slit1_hits, slit2_hits), 10.0, 90.0, 20.0, ORANGE);
         
         // Draw Metrics
