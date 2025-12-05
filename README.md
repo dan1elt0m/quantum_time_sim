@@ -2,6 +2,8 @@
 
 Interactive 3D double-slit simulation in Rust (Macroquad) exploring a phase-perturbed "quantum time" model. The app can run live visualizations, batch analyses, and automated sweeps that export CSV summaries for use in papers and plots.
 
+[example video](https://www.youtube.com/watch?v=Ky9TNk5_orQ)
+
 ## Features
 - Real-time 3D view with trails and intensity map on the detection screen.
 - Batch analysis that fires 1M particles and writes `analysis_results.csv` plus a text summary.
